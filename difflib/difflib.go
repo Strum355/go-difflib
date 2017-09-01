@@ -614,7 +614,7 @@ func WriteUnifiedDiff(writer io.Writer, diff UnifiedDiff) error {
 			noMark = " "
 		}
 
-		if err := wf("@@ -%s +%s @@%s", range1, range2, diff.Eol); err != nil {
+		if err := wf("%s@@ -%s +%s @@%s", noMark, range1, range2, diff.Eol); err != nil {
 			return err
 		}
 		for _, c := range g {
