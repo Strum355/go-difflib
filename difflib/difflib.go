@@ -646,6 +646,87 @@ func WriteUnifiedDiff(writer io.Writer, diff UnifiedDiff) error {
 	return nil
 }
 
+func WriteUnifiedMerge(writer io.Writer, diff UnifiedDiff) error {
+	buf := bufio.NewWriter(writer)
+	defer buf.Flush()
+
+	wf := func(format string, args ...interface{}) error {
+		_, err := buf.WriteString(fmt.Sprintf(format, args...))
+		return err
+	}
+	ws := func(s string) error {
+		_, err := buf.WriteString(s)
+		return err
+	}
+
+	if len(diff.Eol) == 0 {
+		diff.Eol = "\n"
+	}
+
+	m := NewMatcher(diff.A, diff.B)
+	var lastIndex int
+	for _, g := range m.GetGroupedOpCodes(diff.Context) {
+		for _, c := range g {
+			i1, i2, j1, j2 := c.I1, c.I2, c.J1, c.J2
+
+			for _, line := range diff.A[lastIndex:i1] {
+				if err := ws(line); err != nil {
+					return err
+				}
+			}
+
+			lastIndex = i2
+
+			if c.Tag == 'e' {
+				for _, line := range diff.A[i1:i2] {
+					if err := ws(line); err != nil {
+						return err
+					}
+				}
+				continue
+			}
+			if c.Tag == 'r' || c.Tag == 'd' {
+				if err := wf("<<<<<<<<< %s\n", diff.FromFile); err != nil {
+					return err
+				}
+				for _, line := range diff.A[i1:i2] {
+					if err := ws(line); err != nil {
+						return err
+					}
+				}
+			}
+			if c.Tag == 'r' || c.Tag == 'i' {
+				if err := ws("=========\n"); err != nil {
+					return err
+				}
+				for _, line := range diff.B[j1:j2] {
+					if err := ws(line); err != nil {
+						return err
+					}
+				}
+				if err := wf(">>>>>>>>> %s\n", diff.ToFile); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	for _, line := range diff.A[lastIndex:] {
+		if err := ws(line); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Like WriteUnifiedMerge but returns the merge a string.
+func GetUnifiedMergeString(diff UnifiedDiff) (string, error) {
+	w := &bytes.Buffer{}
+	err := WriteUnifiedMerge(w, diff)
+	return string(w.Bytes()), err
+}
+
 // Like WriteUnifiedDiff but returns the diff a string.
 func GetUnifiedDiffString(diff UnifiedDiff) (string, error) {
 	w := &bytes.Buffer{}
