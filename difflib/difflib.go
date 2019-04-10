@@ -608,15 +608,20 @@ func WriteUnifiedDiff(writer io.Writer, diff UnifiedDiff) error {
 			addMark = fmt.Sprintf("%s[%dm+", "\x1b", 32)
 			rmMark = fmt.Sprintf("%s[%dm-", "\x1b", 31)
 			noMark = fmt.Sprintf("%s[%dm ", "\x1b", 0)
+
+			if err := wf("%s@@ -%s +%s @@%s%s", "\x1b[36m", range1, range2, diff.Eol, "\x1b[0m"); err != nil {
+				return err
+			}
 		} else {
 			addMark = "+"
 			rmMark = "-"
 			noMark = " "
+
+			if err := wf("@@ -%s +%s @@%s", range1, range2, diff.Eol); err != nil {
+				return err
+			}
 		}
 
-		if err := wf("%s@@ -%s +%s @@%s", noMark, range1, range2, diff.Eol); err != nil {
-			return err
-		}
 		for _, c := range g {
 			i1, i2, j1, j2 := c.I1, c.I2, c.J1, c.J2
 			if c.Tag == 'e' {
